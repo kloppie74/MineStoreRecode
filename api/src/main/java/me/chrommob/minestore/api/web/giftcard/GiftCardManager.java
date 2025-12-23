@@ -69,7 +69,7 @@ public class GiftCardManager extends FeatureManager {
         }
     }
 
-    // Improved server-side implementation (GiftCardManager or wherever this method lives)
+    // Improved server-side implementation 
     public ValidateGiftCardResponse validateGiftCard(String code) {
         WebApiRequest<JsonObject> request = new WebApiRequest<>("cart/getGift", WebApiRequest.Type.POST,
                 new ParamBuilder().append("gift", code), JsonObject.class, false);

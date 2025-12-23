@@ -69,57 +69,69 @@ public class GiftCardManager extends FeatureManager {
         }
     }
 
+    // Improved server-side implementation (GiftCardManager or wherever this method lives)
     public ValidateGiftCardResponse validateGiftCard(String code) {
-        WebApiRequest<JsonObject> request = new WebApiRequest<>("cart/getGift", WebApiRequest.Type.POST, new ParamBuilder()
-                .append("gift", code), JsonObject.class, false);
+        WebApiRequest<JsonObject> request = new WebApiRequest<>("cart/getGift", WebApiRequest.Type.POST,
+                new ParamBuilder().append("gift", code), JsonObject.class, false);
         Result<JsonObject, Exception> result = request(request);
+    
         if (result.value() == null) {
-            return new ValidateGiftCardResponse(result.error().getMessage());
+            String err = (result.error() != null) ? result.error().getMessage() : "Unknown error";
+            return new ValidateGiftCardResponse(err);
         }
-        boolean success = result.value().get("status").getAsBoolean();
+    
+        boolean success = false;
+        try {
+            success = result.value().get("status").getAsBoolean();
+        } catch (Exception e) {
+            // Defensive: if "status" is missing, fall back to false but log it where appropriate
+            // (logging omitted here; add logging in your environment if needed)
+        }
+    
         if (!success) {
-            return new ValidateGiftCardResponse(result.error().getMessage());
+            // Try to extract a clear error message from the JSON if present
+            String msg = null;
+            if (result.value().has("message")) {
+                msg = result.value().get("message").getAsString();
+            }
+            if (msg == null) msg = (result.error() != null) ? result.error().getMessage() : "API returned failure";
+            return new ValidateGiftCardResponse(msg);
         }
-        return new ValidateGiftCardResponse(result.value().get("start_balance").getAsDouble(), result.value().get("end_balance").getAsDouble(), result.value().get("currency").getAsString());
+    
+        double start = result.value().has("start_balance") ? result.value().get("start_balance").getAsDouble() : 0.0;
+        double end = result.value().has("end_balance") ? result.value().get("end_balance").getAsDouble() : 0.0;
+        String currency = result.value().has("currency") ? result.value().get("currency").getAsString() : "";
+    
+        return new ValidateGiftCardResponse(start, end, currency);
     }
-
-
+    
+    // Response class — FIX: set success = true in the success constructor
     public static class ValidateGiftCardResponse {
         private final boolean success;
         private String message;
+        private double startBalance;
+        private double currentBalance;
+        private String currency;
+    
+        // Error constructor
         public ValidateGiftCardResponse(String message) {
             this.success = false;
             this.message = message;
         }
-        private double startBalance;
-        private double currentBalance;
-        private String currency;
-
+    
+        // Success constructor
         public ValidateGiftCardResponse(double startBalance, double currentBalance, String currency) {
-            this.success = false;
+            this.success = true;         // <-- important: true on successful response
+            this.message = null;
             this.startBalance = startBalance;
             this.currentBalance = currentBalance;
             this.currency = currency;
         }
-
-        public boolean isSuccess() {
-            return success;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public double getStartBalance() {
-            return startBalance;
-        }
-
-        public double getCurrentBalance() {
-            return currentBalance;
-        }
-
-        public String getCurrency() {
-            return currency;
-        }
+    
+        public boolean isSuccess() { return success; }
+        public String getMessage() { return message; }
+        public double getStartBalance() { return startBalance; }
+        public double getCurrentBalance() { return currentBalance; }
+        public String getCurrency() { return currency; }
     }
 }
